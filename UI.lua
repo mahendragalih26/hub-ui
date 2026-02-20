@@ -1,17 +1,7 @@
 --[[
-	Script Hub UI + Craft A World (combined client)
-	Run in executor (client). Loads WindUI; Farm/Settings use server RemoteEvents.
-	Requires GameServer.lua in ServerScriptService.
+	Complete UI Hub - WindUI
+	Run in executor (client). Loads WindUI from GitHub release.
 ]]
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- Wait for server-created remotes (optional; only used for Farm/Settings sync)
-local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents", 10)
-local SelectItemEvent = RemoteEvents and RemoteEvents:FindFirstChild("SelectItemEvent")
-local AutoFarmEvent = RemoteEvents and RemoteEvents:FindFirstChild("AutoFarmEvent")
-local AutoPlaceEvent = RemoteEvents and RemoteEvents:FindFirstChild("AutoPlaceEvent")
-local DelaySettingEvent = RemoteEvents and RemoteEvents:FindFirstChild("DelaySettingEvent")
 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
@@ -156,23 +146,31 @@ FarmSection:Dropdown({
 	Value = "Wood",
 	Callback = function(option)
 		selectedFarmItem = option.Title
-		if SelectItemEvent then SelectItemEvent:FireServer(selectedFarmItem) end
 		WindUI:Notify({ Title = "Item", Content = "Selected: " .. selectedFarmItem, Duration = 1 })
 	end,
 })
 
+local autoFarmActive = false
+local autoFarmConnection = nil
 FarmSection:Toggle({
 	Title = "Auto Farm",
 	Flag = "AutoFarm",
 	Value = false,
 	Callback = function(enabled)
-		if AutoFarmEvent then AutoFarmEvent:FireServer() end
-		WindUI:Notify({
-			Title = "Auto Farm",
-			Content = enabled and ("Farming " .. selectedFarmItem) or "Stopped",
-			Icon = enabled and "check" or "x",
-			Duration = enabled and 2 or 1,
-		})
+		autoFarmActive = enabled
+		if autoFarmConnection then
+			autoFarmConnection:Disconnect()
+			autoFarmConnection = nil
+		end
+		if enabled then
+			autoFarmConnection = RunService.Heartbeat:Connect(function()
+				if not autoFarmActive then return end
+				-- Placeholder: add your game-specific farm logic here
+			end)
+			WindUI:Notify({ Title = "Auto Farm", Content = "Farming " .. selectedFarmItem, Icon = "check", Duration = 2 })
+		else
+			WindUI:Notify({ Title = "Auto Farm", Content = "Stopped", Icon = "x", Duration = 1 })
+		end
 	end,
 })
 
@@ -181,13 +179,13 @@ FarmSection:Toggle({
 	Flag = "AutoPlace",
 	Value = false,
 	Callback = function(enabled)
-		if AutoPlaceEvent then AutoPlaceEvent:FireServer() end
 		WindUI:Notify({
 			Title = "Auto Place",
 			Content = enabled and "Auto Place ON" or "Auto Place OFF",
 			Icon = enabled and "check" or "x",
 			Duration = 2,
 		})
+		-- Add your auto place logic here
 	end,
 })
 
@@ -198,7 +196,6 @@ FarmSection:Slider({
 	Value = { Min = 0.1, Max = 5, Default = 1 },
 	Step = 0.1,
 	Callback = function(value)
-		if DelaySettingEvent then DelaySettingEvent:FireServer(value) end
 		WindUI:Notify({ Title = "Delay", Content = "Set to " .. value .. "s", Duration = 1 })
 	end,
 })
